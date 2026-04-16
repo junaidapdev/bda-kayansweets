@@ -1,20 +1,17 @@
 import { z } from 'zod'
 import { ERROR_MESSAGES } from '../constants/errorMessages'
-import { CREDIT_NOTE_STATUS } from '../constants/appConstants'
-
-const STATUS_VALUES = [
-  CREDIT_NOTE_STATUS.PENDING,
-  CREDIT_NOTE_STATUS.RECEIVED,
-  CREDIT_NOTE_STATUS.DISPUTED,
-] as const
+import { REBATE_LAYERS } from '../constants/bdaRules'
 
 export const creditNoteSchema = z
   .object({
     supplier_id: z.string().uuid(ERROR_MESSAGES.FIELD_REQUIRED),
+    rebate_type: z.enum(REBATE_LAYERS, {
+      errorMap: () => ({ message: ERROR_MESSAGES.FIELD_REQUIRED }),
+    }),
     received_amount: z
       .number({ invalid_type_error: ERROR_MESSAGES.INVALID_AMOUNT })
       .nonnegative(ERROR_MESSAGES.INVALID_AMOUNT),
-    status: z.enum(STATUS_VALUES, {
+    status: z.enum(['pending', 'received', 'disputed'] as const, {
       errorMap: () => ({ message: ERROR_MESSAGES.FIELD_REQUIRED }),
     }),
     period_start: z.string().min(1, ERROR_MESSAGES.INVALID_DATE),

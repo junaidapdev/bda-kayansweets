@@ -5,26 +5,22 @@ import { ERROR_MESSAGES } from '../constants/errorMessages'
 import { HTTP_STATUS } from '../constants/httpStatusCodes'
 import type { ISupplier } from '../interfaces/ISupplier'
 import type { SupplierFormData } from '../validations/supplierSchema'
-import type { IBDARules } from '../interfaces/IBDARules'
+import type { IRebateRules, RentType } from '../interfaces/IBDARules'
 import logger from '../lib/logger'
 
-export type SupplierCreateData = Omit<SupplierFormData, 'monthly_rebate' | 'quarterly_rebate' | 'yearly_rebate' | 'yearly_combined' | 'rent_percent' | 'monthly_target' | 'yearly_target'> & {
-  rebate_rules: IBDARules
-}
-
-function formDataToSupplier(data: SupplierFormData): { name: string; bda_category: string; target_amount: number | null; rebate_rules: IBDARules } {
-  const rebate_rules: IBDARules = {}
-  if (data.monthly_rebate != null) rebate_rules.monthly_rebate = data.monthly_rebate
-  if (data.quarterly_rebate != null) rebate_rules.quarterly_rebate = data.quarterly_rebate
-  if (data.yearly_rebate != null) rebate_rules.yearly_rebate = data.yearly_rebate
-  if (data.yearly_combined != null) rebate_rules.yearly_combined = data.yearly_combined
-  if (data.rent_percent != null) rebate_rules.rent_percent = data.rent_percent
+function formDataToSupplier(data: SupplierFormData): { name: string; target_amount: number | null; rebate_rules: IRebateRules } {
+  const rebate_rules: IRebateRules = {}
+  if (data.monthly_rate != null) rebate_rules.monthly_rate = data.monthly_rate
+  if (data.quarterly_bonus_rate != null) rebate_rules.quarterly_bonus_rate = data.quarterly_bonus_rate
+  if (data.yearly_rate != null) rebate_rules.yearly_rate = data.yearly_rate
+  if (data.rent_type != null) rebate_rules.rent_type = data.rent_type as RentType
+  if (data.rent_value != null) rebate_rules.rent_value = data.rent_value
   if (data.monthly_target != null) rebate_rules.monthly_target = data.monthly_target
+  if (data.quarterly_target != null) rebate_rules.quarterly_target = data.quarterly_target
   if (data.yearly_target != null) rebate_rules.yearly_target = data.yearly_target
 
   return {
     name: data.name,
-    bda_category: data.bda_category,
     target_amount: data.target_amount ?? null,
     rebate_rules,
   }
@@ -103,8 +99,32 @@ export function useSuppliers() {
   }, [])
 
   const remove = useCallback(async (id: string): Promise<ApiResponse<null>> => {
-    const { error: err } = await supabase.from('suppliers').delete().eq('id', id)
+    // Delete related records first to avoid foreign key violations
+    const { error: poErr } = await supabase.from('purchase_orders').delete().eq('supplier_id', id)
+    if (poErr) {
+      logger.error('deleteSupplier: purchase_orders cleanup', poErr)
+      return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
 
+    const { error: cnErr } = await supabase.from('credit_notes').delete().eq('supplier_id', id)
+    if (cnErr) {
+      logger.error('deleteSupplier: credit_notes cleanup', cnErr)
+      return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
+
+    const { error: raErr } = await supabase.from('rebate_accruals').delete().eq('supplier_id', id)
+    if (raErr) {
+      logger.error('deleteSupplier: rebate_accruals cleanup', raErr)
+      return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
+
+    const { error: plErr } = await supabase.from('point_ledger').delete().eq('supplier_id', id)
+    if (plErr) {
+      logger.error('deleteSupplier: point_ledger cleanup', plErr)
+      return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
+
+    const { error: err } = await supabase.from('suppliers').delete().eq('id', id)
     if (err) {
       logger.error('deleteSupplier', err)
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)

@@ -1,20 +1,37 @@
-export const BDA_CATEGORIES = ['monthly', 'quarterly', 'yearly'] as const
-export type BDACategory = (typeof BDA_CATEGORIES)[number]
+/**
+ * All rebate layers per supplier.
+ * Base + Milestone model: monthly, quarterly_bonus, yearly, rent.
+ */
+export const REBATE_LAYERS = [
+  'monthly',
+  'quarterly_bonus',
+  'yearly',
+  'rent',
+] as const
 
-export const BDA_CATEGORY_LABELS: Record<BDACategory, string> = {
+export type RebateLayer = (typeof REBATE_LAYERS)[number]
+
+export const REBATE_LAYER_LABELS: Record<RebateLayer, string> = {
   monthly: 'Monthly',
-  quarterly: 'Quarterly',
+  quarterly_bonus: 'Quarterly Bonus',
   yearly: 'Yearly',
-} as const
+  rent: 'Rent',
+}
 
 /**
- * Maps a BDA category to the key used in supplier.rebate_rules JSONB.
- * e.g. 'monthly' → 'monthly_rebate'
+ * Maps each layer to the key in supplier.rebate_rules that holds its rate.
  */
-export const BDA_REBATE_KEY: Record<BDACategory, string> = {
-  monthly: 'monthly_rebate',
-  quarterly: 'quarterly_rebate',
-  yearly: 'yearly_rebate',
-} as const
+export const REBATE_LAYER_RATE_KEY: Record<RebateLayer, string> = {
+  monthly: 'monthly_rate',
+  quarterly_bonus: 'quarterly_bonus_rate',
+  yearly: 'yearly_rate',
+  rent: 'rent_value',
+}
 
-export const BDA_RENT_KEY = 'rent_percent' as const
+export const RENT_TYPES = ['percentage', 'fixed'] as const
+export type RentType = (typeof RENT_TYPES)[number]
+
+export const RENT_TYPE_LABELS: Record<RentType, string> = {
+  percentage: 'Percentage (%)',
+  fixed: 'Fixed Amount (SR)',
+}

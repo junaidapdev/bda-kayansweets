@@ -3,7 +3,6 @@ import Modal from '../../components/Modal'
 import Button from '../../components/Button'
 import SupplierSelect from './SupplierSelect'
 import { purchaseSchema } from '../../validations/purchaseSchema'
-import { BDA_CATEGORIES, BDA_CATEGORY_LABELS, type BDACategory } from '../../constants/bdaRules'
 import { NOTES_MAX_LENGTH } from '../../constants/appConstants'
 import type { ISupplier } from '../../interfaces/ISupplier'
 import type { IPurchaseFormData } from '../../interfaces/IPurchaseFormData'
@@ -22,7 +21,6 @@ interface FieldErrors {
   supplier_id?: string
   purchase_amount?: string
   order_date?: string
-  bda_category?: string
   notes?: string
 }
 
@@ -30,7 +28,6 @@ const INITIAL_FORM: IPurchaseFormData = {
   supplier_id: '',
   purchase_amount: 0,
   order_date: new Date().toISOString().slice(0, 10),
-  bda_category: 'monthly',
   notes: '',
 }
 
@@ -46,7 +43,6 @@ export default function PurchaseFormModal({ open, onClose, onSubmit, suppliers, 
           supplier_id: editing.supplier_id,
           purchase_amount: editing.purchase_amount,
           order_date: editing.order_date,
-          bda_category: editing.bda_category,
           notes: editing.notes ?? '',
         })
       } else {
@@ -138,27 +134,6 @@ export default function PurchaseFormModal({ open, onClose, onSubmit, suppliers, 
             }}
           />
           {errors.order_date && <span style={{ fontSize: 12, color: '#ef4444' }}>{errors.order_date}</span>}
-        </div>
-
-        {/* BDA Category */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>BDA Category</label>
-          <select
-            value={form.bda_category}
-            onChange={(e) => updateField('bda_category', e.target.value)}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 6,
-              border: errors.bda_category ? '1px solid #ef4444' : '1px solid #d1d5db',
-              fontSize: 14,
-              background: '#fff',
-            }}
-          >
-            {BDA_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{BDA_CATEGORY_LABELS[cat as BDACategory]}</option>
-            ))}
-          </select>
-          {errors.bda_category && <span style={{ fontSize: 12, color: '#ef4444' }}>{errors.bda_category}</span>}
         </div>
 
         {/* Notes */}

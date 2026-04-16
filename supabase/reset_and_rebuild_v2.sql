@@ -1,13 +1,32 @@
 -- ============================================================
--- KNC Discount — Full Supabase Schema (v2 — Stacked Rebates)
--- Run this file in the Supabase SQL Editor for a fresh database.
--- For an existing v1 database, use migration_v2_stacked_rebates.sql.
+-- KNC Discount — Full Reset & Rebuild (v2 — Stacked Rebates)
+-- Run this in the Supabase SQL Editor.
+-- WARNING: This drops all data. Only use on a fresh/dev database.
 -- ============================================================
 
 -- ============================================================
--- 1. SUPPLIERS
--- Master list of suppliers. rebate_rules JSONB holds ALL stacked
--- rebate layers (monthly, quarterly_base, quarterly_bonus, yearly, rent).
+-- STEP 1: DROP EVERYTHING (in reverse dependency order)
+-- ============================================================
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'credit_notes') THEN
+    DROP TRIGGER IF EXISTS trg_credit_notes_discrepancy ON credit_notes;
+  END IF;
+END $$;
+DROP FUNCTION IF EXISTS set_discrepancy_flag();
+DROP FUNCTION IF EXISTS calculate_period_bda(uuid, date, date);
+DROP FUNCTION IF EXISTS current_user_role();
+
+DROP TABLE IF EXISTS rebate_accruals  CASCADE;
+DROP TABLE IF EXISTS point_ledger     CASCADE;
+DROP TABLE IF EXISTS credit_notes     CASCADE;
+DROP TABLE IF EXISTS purchase_orders  CASCADE;
+DROP TABLE IF EXISTS user_profiles    CASCADE;
+DROP TABLE IF EXISTS suppliers        CASCADE;
+
+-- ============================================================
+-- STEP 2: SUPPLIERS
+-- rebate_rules JSONB holds all stacked rebate layers.
 -- ============================================================
 CREATE TABLE suppliers (
     id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -17,23 +36,8 @@ CREATE TABLE suppliers (
     created_at    timestamptz NOT NULL DEFAULT now()
 );
 
--- rebate_rules expected shape:
--- {
---   "monthly_rate": 2.0,
---   "quarterly_base_rate": 6.0,
---   "quarterly_bonus_rate": 2.5,
---   "yearly_rate": 6.0,
---   "rent_type": "percentage",   -- "percentage" | "fixed"
---   "rent_value": 1.0,
---   "monthly_target": null,
---   "quarterly_target": null,
---   "yearly_target": null
--- }
-
 -- ============================================================
--- 2. PURCHASE ORDERS
--- Every purchase logged by the Accounts team.
--- No bda_category — all rebate layers apply to every purchase.
+-- STEP 3: PURCHASE ORDERS
 -- ============================================================
 CREATE TABLE purchase_orders (
     id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -49,10 +53,7 @@ CREATE INDEX idx_purchase_orders_supplier_id ON purchase_orders(supplier_id);
 CREATE INDEX idx_purchase_orders_order_date  ON purchase_orders(order_date);
 
 -- ============================================================
--- 3. CREDIT NOTES
--- Tracks expected vs received rebate credit notes per period.
--- Each note corresponds to ONE rebate layer (rebate_type).
--- discrepancy_flag is auto-set by a trigger.
+-- STEP 4: CREDIT NOTES
 -- ============================================================
 CREATE TABLE credit_notes (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,8 +76,7 @@ CREATE INDEX idx_credit_notes_supplier_id ON credit_notes(supplier_id);
 CREATE INDEX idx_credit_notes_status      ON credit_notes(status);
 
 -- ============================================================
--- 4. REBATE ACCRUALS
--- Tracks each rebate layer independently per period.
+-- STEP 5: REBATE ACCRUALS
 -- ============================================================
 CREATE TABLE rebate_accruals (
     id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,7 +97,7 @@ CREATE INDEX idx_rebate_accruals_supplier ON rebate_accruals(supplier_id);
 CREATE INDEX idx_rebate_accruals_period   ON rebate_accruals(period_start, period_end);
 
 -- ============================================================
--- 5. POINT LEDGER
+-- STEP 6: POINT LEDGER
 -- ============================================================
 CREATE TABLE point_ledger (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -110,7 +110,7 @@ CREATE TABLE point_ledger (
 );
 
 -- ============================================================
--- 6. USER PROFILES
+-- STEP 7: USER PROFILES
 -- ============================================================
 CREATE TABLE user_profiles (
     id         uuid        PRIMARY KEY REFERENCES auth.users(id),
@@ -121,7 +121,7 @@ CREATE TABLE user_profiles (
 );
 
 -- ============================================================
--- 7. AUTO-SET discrepancy_flag ON credit_notes
+-- STEP 8: AUTO-SET discrepancy_flag ON credit_notes
 -- ============================================================
 CREATE OR REPLACE FUNCTION set_discrepancy_flag()
 RETURNS trigger
@@ -139,7 +139,7 @@ CREATE TRIGGER trg_credit_notes_discrepancy
     EXECUTE FUNCTION set_discrepancy_flag();
 
 -- ============================================================
--- 8. ROW-LEVEL SECURITY — DISABLED (no auth)
+-- STEP 9: DISABLE ROW LEVEL SECURITY (no auth required)
 -- ============================================================
 ALTER TABLE suppliers        DISABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_orders  DISABLE ROW LEVEL SECURITY;

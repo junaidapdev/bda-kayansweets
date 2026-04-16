@@ -58,7 +58,13 @@ async function fetchPurchaseOrders(): Promise<ApiResponse<IPurchaseOrderWithSupp
     return errorResponse(ERROR_MESSAGES.PURCHASE_LOAD_FAILED)
   }
 
-  return successResponse(data as IPurchaseOrderWithSupplier[])
+  // Guard against Supabase returning numeric columns as strings
+  const orders = (data as IPurchaseOrderWithSupplier[]).map((row) => ({
+    ...row,
+    purchase_amount: Number(row.purchase_amount),
+  }))
+
+  return successResponse(orders)
 }
 
 async function createPurchaseOrder(formData: IPurchaseFormData): Promise<ApiResponse<IPurchaseOrder>> {
@@ -68,7 +74,6 @@ async function createPurchaseOrder(formData: IPurchaseFormData): Promise<ApiResp
       supplier_id: formData.supplier_id,
       order_date: formData.order_date,
       purchase_amount: formData.purchase_amount,
-      bda_category: formData.bda_category,
       notes: formData.notes || null,
     })
     .select()
@@ -89,7 +94,6 @@ async function updatePurchaseOrder(id: string, formData: IPurchaseFormData): Pro
       supplier_id: formData.supplier_id,
       order_date: formData.order_date,
       purchase_amount: formData.purchase_amount,
-      bda_category: formData.bda_category,
       notes: formData.notes || null,
     })
     .eq('id', id)

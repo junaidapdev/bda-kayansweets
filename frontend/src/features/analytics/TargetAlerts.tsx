@@ -1,5 +1,5 @@
-import { AlertTriangle, TrendingUp } from 'lucide-react'
-import { TARGET_NEAR_PERCENT, TARGET_ALERT_THRESHOLD_PERCENT } from '../../constants/appConstants'
+import { Target } from 'lucide-react'
+import { TARGET_ALERT_THRESHOLD_PERCENT } from '../../constants/appConstants'
 import { formatAmount, formatPercent } from '../../lib/formatters'
 import type { TargetProgress } from '../../hooks/useTargetProgress'
 
@@ -7,66 +7,84 @@ interface TargetAlertsProps {
   progress: TargetProgress[]
 }
 
+interface AlertItem {
+  supplierName: string
+  year: number
+  period: string
+  current: number
+  target: number
+  percent: number
+  remaining: number
+}
+
 export default function TargetAlerts({ progress }: TargetAlertsProps) {
-  const alerts = progress.filter(
-    (p) =>
-      p.target != null &&
-      p.target > 0 &&
-      !p.bda.targetMet &&
-      p.progressPercent >= TARGET_ALERT_THRESHOLD_PERCENT,
-  )
+  const alerts: AlertItem[] = []
 
-  const nearTarget = progress.filter(
-    (p) => p.target != null && p.target > 0 && p.progressPercent >= TARGET_NEAR_PERCENT && !p.bda.targetMet,
-  )
+  for (const p of progress) {
+    const rules = p.supplier.rebate_rules
 
-  if (alerts.length === 0 && nearTarget.length === 0) return null
+    if (p.monthlyProgressPercent >= TARGET_ALERT_THRESHOLD_PERCENT && p.monthlyProgressPercent < 100) {
+      const target = rules.monthly_target ?? 0
+      alerts.push({
+        supplierName: p.supplier.name, year: p.year, period: 'Monthly',
+        current: p.purchases.monthly, target, percent: p.monthlyProgressPercent,
+        remaining: target - p.purchases.monthly,
+      })
+    }
+    if (p.quarterlyProgressPercent >= TARGET_ALERT_THRESHOLD_PERCENT && p.quarterlyProgressPercent < 100) {
+      const target = rules.quarterly_target ?? 0
+      alerts.push({
+        supplierName: p.supplier.name, year: p.year, period: 'Quarterly',
+        current: p.purchases.quarterly, target, percent: p.quarterlyProgressPercent,
+        remaining: target - p.purchases.quarterly,
+      })
+    }
+    if (p.yearlyProgressPercent >= TARGET_ALERT_THRESHOLD_PERCENT && p.yearlyProgressPercent < 100) {
+      const target = rules.yearly_target ?? 0
+      alerts.push({
+        supplierName: p.supplier.name, year: p.year, period: 'Yearly',
+        current: p.purchases.yearly, target, percent: p.yearlyProgressPercent,
+        remaining: target - p.purchases.yearly,
+      })
+    }
+  }
 
-  const combined = [
-    ...nearTarget.map((p) => ({ ...p, level: 'near' as const })),
-    ...alerts
-      .filter((p) => p.progressPercent < TARGET_NEAR_PERCENT)
-      .map((p) => ({ ...p, level: 'warn' as const })),
-  ]
-
-  if (combined.length === 0) return null
+  if (alerts.length === 0) return null
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <h2 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
-        Target Alerts
-      </h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {combined.map((p) => {
-          const remaining = (p.target ?? 0) - p.totalPurchases
-          const isNear = p.level === 'near'
-          return (
-            <div
-              key={p.supplier.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 16px',
-                borderRadius: 8,
-                background: isNear ? '#fefce8' : '#fff7ed',
-                border: `1px solid ${isNear ? '#fde047' : '#fdba74'}`,
-              }}
-            >
-              {isNear
-                ? <TrendingUp size={16} color="#ca8a04" />
-                : <AlertTriangle size={16} color="#ea580c" />
-              }
-              <span style={{ fontSize: 14, color: '#1e293b' }}>
-                <strong>{p.supplier.name}</strong> is at{' '}
-                <strong>{formatPercent(p.progressPercent)}</strong> —{' '}
-                {formatAmount(remaining)} remaining to unlock{' '}
-                <strong>{p.bda.percentage}%</strong> rebate
-              </span>
-            </div>
-          )
-        })}
-      </div>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))`,
+      gap: 12,
+      marginBottom: 20,
+    }}>
+      {alerts.map((a, i) => (
+        <div
+          key={`${a.supplierName}-${a.year}-${a.period}-${i}`}
+          style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: 10,
+            padding: '12px 16px',
+            display: 'flex', gap: 10,
+          }}
+        >
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Target size={15} color="#16a34a" />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#166534' }}>
+              {a.supplierName} — {a.period} target almost reached
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#15803d' }}>
+              {formatPercent(a.percent)} complete — only {formatAmount(a.remaining)} remaining
+            </p>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

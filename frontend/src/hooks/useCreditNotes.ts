@@ -4,16 +4,16 @@ import { successResponse, errorResponse, type ApiResponse } from '../lib/apiResp
 import { ERROR_MESSAGES } from '../constants/errorMessages'
 import { HTTP_STATUS } from '../constants/httpStatusCodes'
 import type { ICreditNote, ICreditNoteWithSupplier } from '../interfaces/ICreditNote'
-import type { ISupplier } from '../interfaces/ISupplier'
 import type { IPurchaseOrder } from '../interfaces/IPurchaseOrder'
-import { computeSupplierBDA } from '../lib/bdaCalculator'
-import type { BDACategory } from '../constants/bdaRules'
+import type { RebateLayer } from '../constants/bdaRules'
 import logger from '../lib/logger'
 
 export interface CreditNoteCreateData {
   supplier_id: string
+  rebate_type: RebateLayer
   period_start: string
   period_end: string
+  expected_amount: number
   received_amount: number
   status: 'pending' | 'received' | 'disputed'
 }
@@ -39,22 +39,8 @@ export function useCreditNotes() {
 
   const create = useCallback(async (
     formData: CreditNoteCreateData,
-    suppliers: ISupplier[],
   ): Promise<ApiResponse<ICreditNote>> => {
-    const supplier = suppliers.find((s) => s.id === formData.supplier_id)
-    if (!supplier) return errorResponse(ERROR_MESSAGES.NOT_FOUND)
-
-    const expectedAmount = await calculateExpectedForPeriod(
-      formData.supplier_id,
-      formData.period_start,
-      formData.period_end,
-      supplier,
-    )
-
-    const result = await createCreditNote({
-      ...formData,
-      expected_amount: expectedAmount,
-    })
+    const result = await createCreditNote(formData)
     if (result.success) await load()
     return result
   }, [load])
@@ -68,37 +54,13 @@ export function useCreditNotes() {
     return result
   }, [load])
 
-  return { creditNotes, loading, error, create, update, reload: load }
-}
+  const softDelete = useCallback(async (id: string): Promise<ApiResponse<null>> => {
+    const result = await softDeleteCreditNote(id)
+    if (result.success) await load()
+    return result
+  }, [load])
 
-/**
- * Calculates expected rebate for a supplier in a date range
- * by summing purchases and running them through the BDA calculator.
- */
-async function calculateExpectedForPeriod(
-  supplierId: string,
-  periodStart: string,
-  periodEnd: string,
-  supplier: ISupplier,
-): Promise<number> {
-  const { data, error } = await supabase
-    .from('purchase_orders')
-    .select('purchase_amount')
-    .eq('supplier_id', supplierId)
-    .gte('order_date', periodStart)
-    .lte('order_date', periodEnd)
-
-  if (error) {
-    logger.error('calculateExpectedForPeriod', error)
-    return 0
-  }
-
-  const totalPurchases = (data as Pick<IPurchaseOrder, 'purchase_amount'>[])
-    .reduce((sum, row) => sum + row.purchase_amount, 0)
-
-  const period = supplier.bda_category as BDACategory
-  const bda = computeSupplierBDA(totalPurchases, supplier.rebate_rules, period)
-  return bda.expectedRebate
+  return { creditNotes, loading, error, create, update, softDelete, reload: load }
 }
 
 /**
@@ -123,13 +85,48 @@ export async function fetchPeriodPurchaseTotal(
   }
 
   return (data as Pick<IPurchaseOrder, 'purchase_amount'>[])
-    .reduce((sum, row) => sum + row.purchase_amount, 0)
+    .reduce((sum, row) => sum + Number(row.purchase_amount), 0)
+}
+
+/**
+ * Fetches purchase total AND the number of distinct months with data
+ * for a supplier in a date range. Used by CreditNoteModal to check
+ * whether a quarterly/yearly period is complete.
+ */
+export async function fetchPeriodPurchaseData(
+  supplierId: string,
+  periodStart: string,
+  periodEnd: string,
+): Promise<{ total: number; monthsWithData: number }> {
+  const { data, error } = await supabase
+    .from('purchase_orders')
+    .select('purchase_amount, order_date')
+    .eq('supplier_id', supplierId)
+    .gte('order_date', periodStart)
+    .lte('order_date', periodEnd)
+
+  if (error) {
+    logger.error('fetchPeriodPurchaseData', error)
+    return { total: 0, monthsWithData: 0 }
+  }
+
+  const rows = data as Pick<IPurchaseOrder, 'purchase_amount' | 'order_date'>[]
+  let total = 0
+  const monthSet = new Set<string>()
+
+  for (const row of rows) {
+    total += Number(row.purchase_amount)
+    monthSet.add(row.order_date.substring(0, 7)) // "2026-01"
+  }
+
+  return { total, monthsWithData: monthSet.size }
 }
 
 async function fetchCreditNotes(): Promise<ApiResponse<ICreditNoteWithSupplier[]>> {
   const { data, error } = await supabase
     .from('credit_notes')
     .select('*, suppliers(name)')
+    .is('deleted_at', null)
     .order('period_end', { ascending: false })
 
   if (error) {
@@ -137,16 +134,78 @@ async function fetchCreditNotes(): Promise<ApiResponse<ICreditNoteWithSupplier[]
     return errorResponse(ERROR_MESSAGES.AUDIT_LOAD_FAILED)
   }
 
-  return successResponse(data as ICreditNoteWithSupplier[])
+  // Guard against Supabase returning numeric columns as strings
+  const notes = (data as ICreditNoteWithSupplier[]).map((row) => ({
+    ...row,
+    expected_amount: Number(row.expected_amount),
+    received_amount: Number(row.received_amount),
+  }))
+
+  return successResponse(notes)
+}
+
+/**
+ * Checks if a credit note already exists for the same supplier + rebate type + period.
+ * Returns the existing note's id if found, null otherwise.
+ */
+export async function findDuplicateCreditNote(
+  supplierId: string,
+  rebateType: string,
+  periodStart: string,
+  periodEnd: string,
+  excludeId?: string,
+): Promise<ICreditNoteWithSupplier | null> {
+  let query = supabase
+    .from('credit_notes')
+    .select('*, suppliers(name)')
+    .eq('supplier_id', supplierId)
+    .eq('rebate_type', rebateType)
+    .eq('period_start', periodStart)
+    .eq('period_end', periodEnd)
+    .is('deleted_at', null)
+    .limit(1)
+
+  if (excludeId) {
+    query = query.neq('id', excludeId)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    logger.error('findDuplicateCreditNote', error)
+    return null
+  }
+
+  if (data && data.length > 0) {
+    const row = data[0] as ICreditNoteWithSupplier
+    return {
+      ...row,
+      expected_amount: Number(row.expected_amount),
+      received_amount: Number(row.received_amount),
+    }
+  }
+  return null
 }
 
 async function createCreditNote(
-  payload: CreditNoteCreateData & { expected_amount: number },
+  payload: CreditNoteCreateData,
 ): Promise<ApiResponse<ICreditNote>> {
+  // ── Duplicate guard ──────────────────────────────────
+  const existing = await findDuplicateCreditNote(
+    payload.supplier_id,
+    payload.rebate_type,
+    payload.period_start,
+    payload.period_end,
+  )
+  if (existing) {
+    return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_DUPLICATE)
+  }
+
   const { data, error } = await supabase
     .from('credit_notes')
     .insert({
       supplier_id: payload.supplier_id,
+      rebate_type: payload.rebate_type,
       period_start: payload.period_start,
       period_end: payload.period_end,
       expected_amount: payload.expected_amount,
@@ -172,6 +231,7 @@ async function updateCreditNote(
     .from('credit_notes')
     .update(data)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
 
@@ -181,4 +241,19 @@ async function updateCreditNote(
   }
 
   return successResponse(row as ICreditNote)
+}
+
+async function softDeleteCreditNote(id: string): Promise<ApiResponse<null>> {
+  const { error } = await supabase
+    .from('credit_notes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+
+  if (error) {
+    logger.error('softDeleteCreditNote', error)
+    return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_DELETE_FAILED)
+  }
+
+  return successResponse(null, HTTP_STATUS.NO_CONTENT)
 }

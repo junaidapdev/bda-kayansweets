@@ -1,16 +1,18 @@
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
 import OverdueBadge from './OverdueBadge'
 import { DATE_FORMAT, CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_LABELS, OVERDUE_THRESHOLD_DAYS, type CreditNoteStatus } from '../../constants/appConstants'
+import { REBATE_LAYER_LABELS, type RebateLayer } from '../../constants/bdaRules'
 import { formatAmount } from '../../lib/formatters'
 import type { ICreditNoteWithSupplier } from '../../interfaces/ICreditNote'
 
 interface AuditTableProps {
   creditNotes: ICreditNoteWithSupplier[]
   onEdit: (note: ICreditNoteWithSupplier) => void
+  onDelete: (note: ICreditNoteWithSupplier) => void
 }
 
 
@@ -31,7 +33,7 @@ function rowBackground(note: ICreditNoteWithSupplier): string | undefined {
   return '#f0fdf4' // green tint
 }
 
-export default function AuditTable({ creditNotes, onEdit }: AuditTableProps) {
+export default function AuditTable({ creditNotes, onEdit, onDelete }: AuditTableProps) {
   const { canEdit } = useAuth()
 
   const thStyle: React.CSSProperties = {
@@ -59,6 +61,7 @@ export default function AuditTable({ creditNotes, onEdit }: AuditTableProps) {
         <thead>
           <tr>
             <th style={thStyle}>Supplier</th>
+            <th style={thStyle}>Rebate Type</th>
             <th style={thStyle}>Period</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Expected (SR)</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Received (SR)</th>
@@ -84,6 +87,9 @@ export default function AuditTable({ creditNotes, onEdit }: AuditTableProps) {
                     {note.suppliers?.name ?? '—'}
                     {overdue && <OverdueBadge />}
                   </div>
+                </td>
+                <td style={{ ...tdStyle, fontSize: 13 }}>
+                  {REBATE_LAYER_LABELS[note.rebate_type as RebateLayer] ?? note.rebate_type}
                 </td>
                 <td style={tdStyle}>
                   {format(parseISO(note.period_start), DATE_FORMAT)} — {format(parseISO(note.period_end), DATE_FORMAT)}
@@ -120,9 +126,18 @@ export default function AuditTable({ creditNotes, onEdit }: AuditTableProps) {
                 </td>
                 {canEdit && (
                   <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    <Button variant="ghost" onClick={() => onEdit(note)} style={{ padding: '4px 8px' }}>
-                      <Pencil size={14} />
-                    </Button>
+                    <div style={{ display: 'inline-flex', gap: 2 }}>
+                      <Button variant="ghost" onClick={() => onEdit(note)} style={{ padding: '4px 8px' }}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => onDelete(note)}
+                        style={{ padding: '4px 8px', color: '#ef4444' }}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </td>
                 )}
               </tr>

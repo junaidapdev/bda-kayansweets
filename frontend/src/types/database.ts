@@ -1,4 +1,4 @@
-import type { IBDARules } from '../interfaces/IBDARules'
+import type { IRebateRules } from '../interfaces/IBDARules'
 
 export type Database = {
   public: {
@@ -7,24 +7,21 @@ export type Database = {
         Row: {
           id: string
           name: string
-          bda_category: string
-          rebate_rules: IBDARules
+          rebate_rules: IRebateRules
           target_amount: number | null
           created_at: string
         }
         Insert: {
           id?: string
           name: string
-          bda_category: string
-          rebate_rules: IBDARules
+          rebate_rules: IRebateRules
           target_amount?: number | null
           created_at?: string
         }
         Update: {
           id?: string
           name?: string
-          bda_category?: string
-          rebate_rules?: IBDARules
+          rebate_rules?: IRebateRules
           target_amount?: number | null
           created_at?: string
         }
@@ -36,7 +33,6 @@ export type Database = {
           supplier_id: string
           order_date: string
           purchase_amount: number
-          bda_category: string
           notes: string | null
           created_by: string | null
           created_at: string
@@ -46,7 +42,6 @@ export type Database = {
           supplier_id: string
           order_date: string
           purchase_amount: number
-          bda_category: string
           notes?: string | null
           created_by?: string | null
           created_at?: string
@@ -56,7 +51,6 @@ export type Database = {
           supplier_id?: string
           order_date?: string
           purchase_amount?: number
-          bda_category?: string
           notes?: string | null
           created_by?: string | null
           created_at?: string
@@ -75,6 +69,7 @@ export type Database = {
         Row: {
           id: string
           supplier_id: string
+          rebate_type: string
           period_start: string
           period_end: string
           expected_amount: number
@@ -84,10 +79,12 @@ export type Database = {
           verified_by: string | null
           verified_at: string | null
           created_at: string
+          deleted_at: string | null
         }
         Insert: {
           id?: string
           supplier_id: string
+          rebate_type: string
           period_start: string
           period_end: string
           expected_amount: number
@@ -97,10 +94,12 @@ export type Database = {
           verified_by?: string | null
           verified_at?: string | null
           created_at?: string
+          deleted_at?: string | null
         }
         Update: {
           id?: string
           supplier_id?: string
+          rebate_type?: string
           period_start?: string
           period_end?: string
           expected_amount?: number
@@ -110,10 +109,58 @@ export type Database = {
           verified_by?: string | null
           verified_at?: string | null
           created_at?: string
+          deleted_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: 'credit_notes_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      rebate_accruals: {
+        Row: {
+          id: string
+          supplier_id: string
+          rebate_type: string
+          period_start: string
+          period_end: string
+          total_purchases: number
+          rate: number
+          expected_amount: number
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          supplier_id: string
+          rebate_type: string
+          period_start: string
+          period_end: string
+          total_purchases?: number
+          rate?: number
+          expected_amount?: number
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          supplier_id?: string
+          rebate_type?: string
+          period_start?: string
+          period_end?: string
+          total_purchases?: number
+          rate?: number
+          expected_amount?: number
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'rebate_accruals_supplier_id_fkey'
             columns: ['supplier_id']
             isOneToOne: false
             referencedRelation: 'suppliers'

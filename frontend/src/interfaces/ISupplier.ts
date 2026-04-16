@@ -1,10 +1,9 @@
-import type { IBDARules } from './IBDARules'
+import type { IRebateRules } from './IBDARules'
 
 export interface ISupplier {
   id: string
   name: string
-  bda_category: string
-  rebate_rules: IBDARules
+  rebate_rules: IRebateRules
   target_amount: number | null
   created_at: string
 }

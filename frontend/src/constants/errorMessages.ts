@@ -38,6 +38,7 @@ export const ERROR_MESSAGES = {
   SUPPLIER_DELETE_FAILED: 'Failed to delete supplier.',
 
   // Credit Note validation
+  CREDIT_NOTE_DUPLICATE: 'A credit note already exists for this supplier, rebate type, and period.',
   PERIOD_END_BEFORE_START: 'Period end date must be after start date.',
 
   // Validation

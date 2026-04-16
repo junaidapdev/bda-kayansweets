@@ -3,7 +3,6 @@ export interface IPurchaseOrder {
   supplier_id: string
   order_date: string
   purchase_amount: number
-  bda_category: string
   notes: string | null
   created_by: string | null
   created_at: string

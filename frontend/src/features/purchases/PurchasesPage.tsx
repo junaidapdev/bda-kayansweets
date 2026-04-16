@@ -103,7 +103,7 @@ export default function PurchasesPage() {
               ) : undefined}
             />
           ) : (
-            <PurchaseTable orders={orders} suppliers={suppliers} onEdit={handleEdit} onDelete={handleDelete} />
+            <PurchaseTable orders={orders} onEdit={handleEdit} onDelete={handleDelete} />
           )}
         </>
       )}
