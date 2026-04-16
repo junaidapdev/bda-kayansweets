@@ -1,27 +1,25 @@
 import { useAuth } from '../../hooks/useAuth'
 import { useSuppliers } from '../../hooks/useSuppliers'
-import { usePurchaseOrders } from '../../hooks/usePurchaseOrders'
 import { useCreditNotes } from '../../hooks/useCreditNotes'
 import { useTargetProgress } from '../../hooks/useTargetProgress'
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary'
-import { useMissingQuarterlyNotes } from '../../hooks/useMissingQuarterlyNotes'
 import Skeleton from '../../components/Skeleton'
 import { TAB_LABELS } from '../../constants/appConstants'
 import AnalyticsSummaryCards from './AnalyticsSummaryCards'
-import LeakageBreakdown from './LeakageBreakdown'
 import SupplierPerformanceTable from './SupplierPerformanceTable'
-import AnalyticsAlerts from './AnalyticsAlerts'
-import TargetTracker from './TargetTracker'
-import TargetAlerts from './TargetAlerts'
+
+// Hidden for now — will reactivate later
+// import LeakageBreakdown from './LeakageBreakdown'
+// import AnalyticsAlerts from './AnalyticsAlerts'
+// import TargetTracker from './TargetTracker'
+// import TargetAlerts from './TargetAlerts'
 
 export default function AnalyticsPage() {
   const { canEdit } = useAuth()
   const { suppliers, loading: suppliersLoading } = useSuppliers()
-  const { orders } = usePurchaseOrders()
   const { creditNotes, loading: creditNotesLoading } = useCreditNotes()
-  const { progress, loading: progressLoading, error: progressError } = useTargetProgress(suppliers)
+  const { loading: progressLoading } = useTargetProgress(suppliers)
   const analytics = useAnalyticsSummary(creditNotes)
-  const missingNotes = useMissingQuarterlyNotes(orders, creditNotes, suppliers)
 
   const isLoading = suppliersLoading || creditNotesLoading || progressLoading
 

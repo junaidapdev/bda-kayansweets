@@ -25,7 +25,8 @@ async function fetchProgressForSuppliers(
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth()
-  const currentQuarter = getQuarter(currentMonth)
+  const _currentQuarter = getQuarter(currentMonth) // used by future target alerts
+  void _currentQuarter
   const monthStart = format(startOfMonth(now), 'yyyy-MM-dd')
   const quarterStart = format(startOfQuarter(now), 'yyyy-MM-dd')
 
