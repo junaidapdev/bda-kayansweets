@@ -1,8 +1,10 @@
+import { useState, useCallback } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { ShoppingCart, ClipboardCheck, BarChart3, Building2 } from 'lucide-react'
+import { ShoppingCart, ClipboardCheck, BarChart3, Building2, Download } from 'lucide-react'
 import { ROUTES, TAB_LABELS, APP_NAME } from '../constants/appConstants'
 import { ROLES, type Role } from '../constants/roles'
 import { useAuth } from '../hooks/useAuth'
+import { exportAllData } from '../lib/exportData'
 
 const NAV_ITEMS = [
   { to: ROUTES.PURCHASES, label: TAB_LABELS.PURCHASES, icon: ShoppingCart },
@@ -18,6 +20,16 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
 
 export default function Layout() {
   const { role, setRole } = useAuth()
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    const result = await exportAllData()
+    setExporting(false)
+    if (!result.success) {
+      alert('Export failed: ' + (result.error ?? 'Unknown error'))
+    }
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
@@ -35,6 +47,29 @@ export default function Layout() {
         <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em' }}>{APP_NAME}</span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            title="Download a full backup of all data as CSV files"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#cbd5e1',
+              background: '#334155',
+              border: '1px solid #475569',
+              borderRadius: 6,
+              cursor: exporting ? 'wait' : 'pointer',
+              opacity: exporting ? 0.6 : 1,
+            }}
+          >
+            <Download size={13} />
+            {exporting ? 'Exporting…' : 'Backup'}
+          </button>
+
           <span style={{ fontSize: 13, color: '#94a3b8' }}>Role:</span>
           <select
             value={role}
