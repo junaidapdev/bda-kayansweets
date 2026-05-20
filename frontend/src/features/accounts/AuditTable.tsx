@@ -1,5 +1,6 @@
+import { useMemo, useState } from 'react'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { Pencil, Trash2 } from 'lucide-react'
+import { ArrowUpDown, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
@@ -15,6 +16,17 @@ interface AuditTableProps {
   onDelete: (note: ICreditNoteWithSupplier) => void
 }
 
+type SortField =
+  | 'supplier'
+  | 'rebate_type'
+  | 'period'
+  | 'expected_amount'
+  | 'received_amount'
+  | 'diff'
+  | 'diff_percent'
+  | 'status'
+
+type SortDir = 'asc' | 'desc'
 
 function statusVariant(status: CreditNoteStatus): 'success' | 'warning' | 'error' {
   if (status === CREDIT_NOTE_STATUS.RECEIVED) return 'success'
@@ -33,8 +45,74 @@ function rowBackground(note: ICreditNoteWithSupplier): string | undefined {
   return '#f0fdf4' // green tint
 }
 
+function noteDiff(note: ICreditNoteWithSupplier): number {
+  return note.expected_amount - note.received_amount
+}
+
+function noteDiffPercent(note: ICreditNoteWithSupplier): number {
+  return note.expected_amount > 0 ? (noteDiff(note) / note.expected_amount) * 100 : 0
+}
+
 export default function AuditTable({ creditNotes, onEdit, onDelete }: AuditTableProps) {
   const { canEdit } = useAuth()
+  const [sortField, setSortField] = useState<SortField>('supplier')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const sortedCreditNotes = useMemo(() => {
+    return [...creditNotes].sort((a, b) => {
+      let cmp = 0
+      switch (sortField) {
+        case 'supplier':
+          cmp = (a.suppliers?.name ?? '').localeCompare(b.suppliers?.name ?? '')
+          break
+        case 'rebate_type':
+          cmp = (
+            REBATE_LAYER_LABELS[a.rebate_type as RebateLayer] ?? a.rebate_type
+          ).localeCompare(REBATE_LAYER_LABELS[b.rebate_type as RebateLayer] ?? b.rebate_type)
+          break
+        case 'period':
+          cmp = a.period_start.localeCompare(b.period_start)
+          if (cmp === 0) cmp = a.period_end.localeCompare(b.period_end)
+          break
+        case 'expected_amount':
+          cmp = a.expected_amount - b.expected_amount
+          break
+        case 'received_amount':
+          cmp = a.received_amount - b.received_amount
+          break
+        case 'diff':
+          cmp = noteDiff(a) - noteDiff(b)
+          break
+        case 'diff_percent':
+          cmp = noteDiffPercent(a) - noteDiffPercent(b)
+          break
+        case 'status':
+          cmp = CREDIT_NOTE_STATUS_LABELS[a.status].localeCompare(CREDIT_NOTE_STATUS_LABELS[b.status])
+          break
+      }
+
+      if (cmp === 0) {
+        cmp = a.period_end.localeCompare(b.period_end)
+        if (cmp === 0) cmp = a.created_at.localeCompare(b.created_at)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [creditNotes, sortDir, sortField])
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const sortableLabel = (label: string) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {label} <ArrowUpDown size={12} />
+    </span>
+  )
 
   const thStyle: React.CSSProperties = {
     padding: '10px 12px',
@@ -46,6 +124,8 @@ export default function AuditTable({ creditNotes, onEdit, onDelete }: AuditTable
     textAlign: 'left',
     borderBottom: '1px solid #e2e8f0',
     whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    userSelect: 'none',
   }
 
   const tdStyle: React.CSSProperties = {
@@ -60,23 +140,21 @@ export default function AuditTable({ creditNotes, onEdit, onDelete }: AuditTable
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th style={thStyle}>Supplier</th>
-            <th style={thStyle}>Rebate Type</th>
-            <th style={thStyle}>Period</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Expected (SR)</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Received (SR)</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Diff (SR)</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Diff %</th>
-            <th style={thStyle}>Status</th>
+            <th style={thStyle} onClick={() => toggleSort('supplier')}>{sortableLabel('Supplier')}</th>
+            <th style={thStyle} onClick={() => toggleSort('rebate_type')}>{sortableLabel('Rebate Type')}</th>
+            <th style={thStyle} onClick={() => toggleSort('period')}>{sortableLabel('Period')}</th>
+            <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => toggleSort('expected_amount')}>{sortableLabel('Expected (SR)')}</th>
+            <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => toggleSort('received_amount')}>{sortableLabel('Received (SR)')}</th>
+            <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => toggleSort('diff')}>{sortableLabel('Diff (SR)')}</th>
+            <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => toggleSort('diff_percent')}>{sortableLabel('Diff %')}</th>
+            <th style={thStyle} onClick={() => toggleSort('status')}>{sortableLabel('Status')}</th>
             {canEdit && <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
-          {creditNotes.map((note) => {
-            const diff = note.expected_amount - note.received_amount
-            const diffPercent = note.expected_amount > 0
-              ? (diff / note.expected_amount) * 100
-              : 0
+          {sortedCreditNotes.map((note) => {
+            const diff = noteDiff(note)
+            const diffPercent = noteDiffPercent(note)
             const overdue = isOverdue(note)
             const bg = rowBackground(note)
 
