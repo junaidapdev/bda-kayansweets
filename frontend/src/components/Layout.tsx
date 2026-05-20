@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { ShoppingCart, ClipboardCheck, BarChart3, Building2, Download } from 'lucide-react'
+import { ShoppingCart, ClipboardCheck, BarChart3, Building2, Download, LogOut, UserRound } from 'lucide-react'
 import { ROUTES, TAB_LABELS, APP_NAME } from '../constants/appConstants'
-import { ROLES, type Role } from '../constants/roles'
 import { useAuth } from '../hooks/useAuth'
 import { exportAllData } from '../lib/exportData'
 
@@ -13,14 +12,10 @@ const NAV_ITEMS = [
   { to: ROUTES.SUPPLIERS, label: TAB_LABELS.SUPPLIERS, icon: Building2 },
 ]
 
-const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: ROLES.ACCOUNTS, label: 'Accounts Team' },
-  { value: ROLES.PURCHASE_MANAGER, label: 'Purchase Manager' },
-]
-
 export default function Layout() {
-  const { role, setRole } = useAuth()
+  const { logout } = useAuth()
   const [exporting, setExporting] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   const handleExport = useCallback(async () => {
     setExporting(true)
@@ -30,6 +25,15 @@ export default function Layout() {
       alert('Export failed: ' + (result.error ?? 'Unknown error'))
     }
   }, [])
+
+  const handleLogout = useCallback(async () => {
+    setSigningOut(true)
+    try {
+      await logout()
+    } finally {
+      setSigningOut(false)
+    }
+  }, [logout])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
@@ -70,38 +74,43 @@ export default function Layout() {
             {exporting ? 'Exporting…' : 'Backup'}
           </button>
 
-          <span style={{ fontSize: 13, color: '#94a3b8' }}>Role:</span>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            background: '#0f766e',
+            color: '#ccfbf1',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '4px 9px',
+            borderRadius: 6,
+          }}>
+            <UserRound size={13} />
+            Admin
+          </span>
+
+          <button
+            onClick={handleLogout}
+            disabled={signingOut}
+            title="Sign out"
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#cbd5e1',
               background: '#334155',
-              color: '#f8fafc',
               border: '1px solid #475569',
               borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 13,
-              cursor: 'pointer',
+              cursor: signingOut ? 'wait' : 'pointer',
+              opacity: signingOut ? 0.6 : 1,
             }}
           >
-            {ROLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-
-          {role === ROLES.PURCHASE_MANAGER && (
-            <span style={{
-              background: '#0f766e',
-              color: '#ccfbf1',
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '2px 8px',
-              borderRadius: 4,
-              letterSpacing: '0.02em',
-            }}>
-              READ-ONLY
-            </span>
-          )}
+            <LogOut size={13} />
+            {signingOut ? 'Signing out...' : 'Logout'}
+          </button>
         </div>
       </header>
 

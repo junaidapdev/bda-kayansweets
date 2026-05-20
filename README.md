@@ -34,3 +34,10 @@ npm run dev
 npx supabase start       # local dev
 npx supabase db push      # apply migrations
 ```
+
+### Single admin login
+
+The frontend login uses username `bdakayan` and maps it to the Supabase Auth email `bda@kayan.com`.
+Create that user in Supabase Auth, confirm the user, and set the password in the Supabase dashboard. Do not commit the password to the repo.
+
+Run `supabase/migration_v5_single_admin_rls.sql` after creating the auth user to enable RLS and grant access only to that admin account.
