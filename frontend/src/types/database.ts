@@ -1,5 +1,13 @@
 import type { IRebateRules } from '../interfaces/IBDARules'
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue | undefined }
+  | JsonValue[]
+
 export type Database = {
   public: {
     Tables: {
@@ -224,6 +232,54 @@ export type Database = {
           full_name?: string
           role?: string
           created_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          created_at: string
+          actor_user_id: string | null
+          actor_email: string | null
+          event_type: string
+          entity_type: string | null
+          entity_id: string | null
+          action: string
+          old_data: JsonValue | null
+          new_data: JsonValue | null
+          changed_fields: string[] | null
+          metadata: JsonValue
+          request_context: JsonValue
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          actor_user_id?: string | null
+          actor_email?: string | null
+          event_type: string
+          entity_type?: string | null
+          entity_id?: string | null
+          action: string
+          old_data?: JsonValue | null
+          new_data?: JsonValue | null
+          changed_fields?: string[] | null
+          metadata?: JsonValue
+          request_context?: JsonValue
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          actor_user_id?: string | null
+          actor_email?: string | null
+          event_type?: string
+          entity_type?: string | null
+          entity_id?: string | null
+          action?: string
+          old_data?: JsonValue | null
+          new_data?: JsonValue | null
+          changed_fields?: string[] | null
+          metadata?: JsonValue
+          request_context?: JsonValue
         }
         Relationships: []
       }

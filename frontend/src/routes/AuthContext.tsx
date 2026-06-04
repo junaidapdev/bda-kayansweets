@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { ENV } from '../constants/env'
 import { ROLES, type Role } from '../constants/roles'
 import supabase from '../lib/supabaseClient'
+import logger from '../lib/logger'
 
 interface AuthContextValue {
   role: Role
@@ -59,6 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     if (username.trim().toLowerCase() !== ENV.ADMIN_USERNAME.toLowerCase()) {
+      logger.diagnostic({
+        level: 'warn',
+        event_type: 'auth.login_failed',
+        message: 'Login failed because the username did not match the configured admin username.',
+        metadata: {
+          reason: 'invalid_username',
+          attempted_username: username.trim(),
+        },
+      })
       return { success: false, error: INVALID_LOGIN_MESSAGE }
     }
 
@@ -68,11 +78,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     if (error || !data.session || !isAdminSession(data.session)) {
+      logger.diagnostic({
+        level: 'warn',
+        event_type: 'auth.login_failed',
+        message: 'Login failed during Supabase authentication or admin session validation.',
+        metadata: {
+          reason: error ? 'supabase_auth_error' : 'invalid_admin_session',
+          error,
+          has_session: !!data.session,
+          auth_email: data.session?.user.email ?? ENV.ADMIN_AUTH_EMAIL,
+        },
+      })
       await supabase.auth.signOut()
       return { success: false, error: INVALID_LOGIN_MESSAGE }
     }
 
     setSession(data.session)
+    logger.diagnostic({
+      level: 'info',
+      event_type: 'auth.login_success',
+      message: 'Admin login succeeded.',
+      metadata: {
+        user_id: data.session.user.id,
+        auth_email: data.session.user.email,
+      },
+    })
     return { success: true }
   }, [])
 

@@ -69,6 +69,16 @@ export function useSuppliers() {
 
     if (err) {
       logger.error('createSupplier', err)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.create_failed',
+        message: 'Failed to create supplier in Supabase.',
+        metadata: {
+          error: err,
+          supplier_name: data.name,
+          target_amount: data.target_amount,
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_CREATE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
@@ -88,6 +98,17 @@ export function useSuppliers() {
 
     if (err) {
       logger.error('updateSupplier', err)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.update_failed',
+        message: 'Failed to update supplier in Supabase.',
+        metadata: {
+          error: err,
+          supplier_id: id,
+          supplier_name: data.name,
+          target_amount: data.target_amount,
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_UPDATE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
@@ -103,30 +124,80 @@ export function useSuppliers() {
     const { error: poErr } = await supabase.from('purchase_orders').delete().eq('supplier_id', id)
     if (poErr) {
       logger.error('deleteSupplier: purchase_orders cleanup', poErr)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.delete_failed',
+        message: 'Failed to delete supplier purchase orders during supplier deletion.',
+        metadata: {
+          error: poErr,
+          supplier_id: id,
+          cleanup_table: 'purchase_orders',
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
     const { error: cnErr } = await supabase.from('credit_notes').delete().eq('supplier_id', id)
     if (cnErr) {
       logger.error('deleteSupplier: credit_notes cleanup', cnErr)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.delete_failed',
+        message: 'Failed to delete supplier credit notes during supplier deletion.',
+        metadata: {
+          error: cnErr,
+          supplier_id: id,
+          cleanup_table: 'credit_notes',
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
     const { error: raErr } = await supabase.from('rebate_accruals').delete().eq('supplier_id', id)
     if (raErr) {
       logger.error('deleteSupplier: rebate_accruals cleanup', raErr)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.delete_failed',
+        message: 'Failed to delete supplier rebate accruals during supplier deletion.',
+        metadata: {
+          error: raErr,
+          supplier_id: id,
+          cleanup_table: 'rebate_accruals',
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
     const { error: plErr } = await supabase.from('point_ledger').delete().eq('supplier_id', id)
     if (plErr) {
       logger.error('deleteSupplier: point_ledger cleanup', plErr)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.delete_failed',
+        message: 'Failed to delete supplier point ledger rows during supplier deletion.',
+        metadata: {
+          error: plErr,
+          supplier_id: id,
+          cleanup_table: 'point_ledger',
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
     const { error: err } = await supabase.from('suppliers').delete().eq('id', id)
     if (err) {
       logger.error('deleteSupplier', err)
+      logger.diagnostic({
+        level: 'error',
+        event_type: 'supplier.delete_failed',
+        message: 'Failed to delete supplier row in Supabase.',
+        metadata: {
+          error: err,
+          supplier_id: id,
+          cleanup_table: 'suppliers',
+        },
+      })
       return errorResponse(ERROR_MESSAGES.SUPPLIER_DELETE_FAILED, HTTP_STATUS.INTERNAL_SERVER_ERROR)
     }
 
@@ -145,6 +216,12 @@ async function fetchSuppliers(): Promise<ApiResponse<ISupplier[]>> {
 
   if (error) {
     logger.error('fetchSuppliers', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'suppliers.fetch_failed',
+      message: 'Failed to fetch suppliers from Supabase.',
+      metadata: { error },
+    })
     return errorResponse(ERROR_MESSAGES.SUPPLIER_LOAD_FAILED)
   }
 

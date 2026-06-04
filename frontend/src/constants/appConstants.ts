@@ -5,6 +5,7 @@ export const TAB_LABELS = {
   AUDIT: 'Accounts',
   ANALYTICS: 'Analytics',
   SUPPLIERS: 'Suppliers',
+  ACTIVITY: 'Activity',
 } as const
 
 export const ROUTES = {
@@ -12,6 +13,7 @@ export const ROUTES = {
   AUDIT: '/audit',
   ANALYTICS: '/analytics',
   SUPPLIERS: '/suppliers',
+  ACTIVITY: '/activity',
 } as const
 
 export const PAGINATION = {

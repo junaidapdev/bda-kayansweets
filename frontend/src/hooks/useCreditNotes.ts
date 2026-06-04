@@ -81,6 +81,17 @@ export async function fetchPeriodPurchaseTotal(
 
   if (error) {
     logger.error('fetchPeriodPurchaseTotal', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.period_purchase_total_failed',
+      message: 'Failed to fetch period purchase total for credit note preview.',
+      metadata: {
+        error,
+        supplier_id: supplierId,
+        period_start: periodStart,
+        period_end: periodEnd,
+      },
+    })
     return 0
   }
 
@@ -107,6 +118,17 @@ export async function fetchPeriodPurchaseData(
 
   if (error) {
     logger.error('fetchPeriodPurchaseData', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.period_purchase_data_failed',
+      message: 'Failed to fetch period purchase data for credit note preview.',
+      metadata: {
+        error,
+        supplier_id: supplierId,
+        period_start: periodStart,
+        period_end: periodEnd,
+      },
+    })
     return { total: 0, monthsWithData: 0 }
   }
 
@@ -131,6 +153,12 @@ async function fetchCreditNotes(): Promise<ApiResponse<ICreditNoteWithSupplier[]
 
   if (error) {
     logger.error('fetchCreditNotes', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_notes.fetch_failed',
+      message: 'Failed to fetch credit notes from Supabase.',
+      metadata: { error },
+    })
     return errorResponse(ERROR_MESSAGES.AUDIT_LOAD_FAILED)
   }
 
@@ -173,6 +201,19 @@ export async function findDuplicateCreditNote(
 
   if (error) {
     logger.error('findDuplicateCreditNote', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.duplicate_lookup_failed',
+      message: 'Failed to check for duplicate credit note in Supabase.',
+      metadata: {
+        error,
+        supplier_id: supplierId,
+        rebate_type: rebateType,
+        period_start: periodStart,
+        period_end: periodEnd,
+        exclude_id: excludeId,
+      },
+    })
     return null
   }
 
@@ -198,6 +239,19 @@ async function createCreditNote(
     payload.period_end,
   )
   if (existing) {
+    logger.diagnostic({
+      level: 'warn',
+      event_type: 'credit_note.duplicate_detected',
+      message: 'Credit note creation was blocked because a duplicate already exists.',
+      metadata: {
+        supplier_id: payload.supplier_id,
+        rebate_type: payload.rebate_type,
+        period_start: payload.period_start,
+        period_end: payload.period_end,
+        existing_credit_note_id: existing.id,
+        existing_status: existing.status,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_DUPLICATE)
   }
 
@@ -217,6 +271,21 @@ async function createCreditNote(
 
   if (error) {
     logger.error('createCreditNote', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.create_failed',
+      message: 'Failed to create credit note in Supabase.',
+      metadata: {
+        error,
+        supplier_id: payload.supplier_id,
+        rebate_type: payload.rebate_type,
+        period_start: payload.period_start,
+        period_end: payload.period_end,
+        expected_amount: payload.expected_amount,
+        received_amount: payload.received_amount,
+        status: payload.status,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_CREATE_FAILED)
   }
 
@@ -237,6 +306,20 @@ async function updateCreditNote(
 
   if (error) {
     logger.error('updateCreditNote', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.update_failed',
+      message: 'Failed to update credit note in Supabase.',
+      metadata: {
+        error,
+        credit_note_id: id,
+        supplier_id: data.supplier_id,
+        rebate_type: data.rebate_type,
+        period_start: data.period_start,
+        period_end: data.period_end,
+        status: data.status,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_UPDATE_FAILED)
   }
 
@@ -252,6 +335,15 @@ async function softDeleteCreditNote(id: string): Promise<ApiResponse<null>> {
 
   if (error) {
     logger.error('softDeleteCreditNote', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'credit_note.delete_failed',
+      message: 'Failed to soft-delete credit note in Supabase.',
+      metadata: {
+        error,
+        credit_note_id: id,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.CREDIT_NOTE_DELETE_FAILED)
   }
 

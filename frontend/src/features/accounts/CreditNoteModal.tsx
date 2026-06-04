@@ -222,7 +222,21 @@ export default function CreditNoteModal({ open, onClose, onSubmit, suppliers, ed
           setExpectedRebate(amount)
         }
       })
-      .catch((err) => logger.error('preview calculation', err))
+      .catch((err) => {
+        logger.error('preview calculation', err)
+        logger.diagnostic({
+          level: 'error',
+          event_type: 'credit_note.preview_calculation_failed',
+          message: 'Failed to calculate the credit note preview.',
+          metadata: {
+            error: err,
+            supplier_id: supplierId,
+            rebate_type: rebateType,
+            period_start: periodDates.start,
+            period_end: periodDates.end,
+          },
+        })
+      })
       .finally(() => { if (!cancelled) setLoadingPreview(false) })
 
     return () => { cancelled = true }
@@ -252,6 +266,19 @@ export default function CreditNoteModal({ open, onClose, onSubmit, suppliers, ed
 
     // ── Frontend duplicate guard (pre-submit) ──────────
     if (!editing && duplicateNote) {
+      logger.diagnostic({
+        level: 'warn',
+        event_type: 'credit_note.duplicate_detected',
+        message: 'Credit note submission was blocked by the frontend duplicate guard.',
+        metadata: {
+          supplier_id: parsed.data.supplier_id,
+          rebate_type: parsed.data.rebate_type,
+          period_start: parsed.data.period_start,
+          period_end: parsed.data.period_end,
+          existing_credit_note_id: duplicateNote.id,
+          existing_status: duplicateNote.status,
+        },
+      })
       setErrors({ period_start: ERROR_MESSAGES.CREDIT_NOTE_DUPLICATE })
       return
     }

@@ -7,6 +7,7 @@ import PurchasesPage from '../features/purchases/PurchasesPage'
 import AccountsPage from '../features/accounts/AccountsPage'
 import AnalyticsPage from '../features/analytics/AnalyticsPage'
 import SuppliersPage from '../features/suppliers/SuppliersPage'
+import ActivityLogPage from '../features/activity/ActivityLogPage'
 import LoginPage from '../features/auth/LoginPage'
 
 function AuthGate() {
@@ -44,6 +45,7 @@ export default function AppRouter() {
             <Route path={ROUTES.AUDIT} element={<AccountsPage />} />
             <Route path={ROUTES.ANALYTICS} element={<AnalyticsPage />} />
             <Route path={ROUTES.SUPPLIERS} element={<SuppliersPage />} />
+            <Route path={ROUTES.ACTIVITY} element={<ActivityLogPage />} />
             <Route path="*" element={<Navigate to={ROUTES.PURCHASES} replace />} />
           </Route>
         </Routes>

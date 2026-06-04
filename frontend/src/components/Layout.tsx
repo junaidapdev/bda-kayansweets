@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { ShoppingCart, ClipboardCheck, BarChart3, Building2, Download, LogOut, UserRound } from 'lucide-react'
+import { ShoppingCart, ClipboardCheck, BarChart3, Building2, Activity, Download, LogOut, UserRound } from 'lucide-react'
 import { ROUTES, TAB_LABELS, APP_NAME } from '../constants/appConstants'
 import { useAuth } from '../hooks/useAuth'
 import { exportAllData } from '../lib/exportData'
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: ROUTES.AUDIT, label: TAB_LABELS.AUDIT, icon: ClipboardCheck },
   { to: ROUTES.ANALYTICS, label: TAB_LABELS.ANALYTICS, icon: BarChart3 },
   { to: ROUTES.SUPPLIERS, label: TAB_LABELS.SUPPLIERS, icon: Building2 },
+  { to: ROUTES.ACTIVITY, label: TAB_LABELS.ACTIVITY, icon: Activity },
 ]
 
 export default function Layout() {

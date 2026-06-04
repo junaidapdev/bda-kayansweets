@@ -55,6 +55,12 @@ async function fetchPurchaseOrders(): Promise<ApiResponse<IPurchaseOrderWithSupp
 
   if (error) {
     logger.error('fetchPurchaseOrders', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'purchase_orders.fetch_failed',
+      message: 'Failed to fetch purchase orders from Supabase.',
+      metadata: { error },
+    })
     return errorResponse(ERROR_MESSAGES.PURCHASE_LOAD_FAILED)
   }
 
@@ -81,6 +87,17 @@ async function createPurchaseOrder(formData: IPurchaseFormData): Promise<ApiResp
 
   if (error) {
     logger.error('createPurchaseOrder', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'purchase_order.create_failed',
+      message: 'Failed to create purchase order in Supabase.',
+      metadata: {
+        error,
+        supplier_id: formData.supplier_id,
+        order_date: formData.order_date,
+        purchase_amount: formData.purchase_amount,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.PURCHASE_CREATE_FAILED)
   }
 
@@ -102,6 +119,18 @@ async function updatePurchaseOrder(id: string, formData: IPurchaseFormData): Pro
 
   if (error) {
     logger.error('updatePurchaseOrder', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'purchase_order.update_failed',
+      message: 'Failed to update purchase order in Supabase.',
+      metadata: {
+        error,
+        purchase_order_id: id,
+        supplier_id: formData.supplier_id,
+        order_date: formData.order_date,
+        purchase_amount: formData.purchase_amount,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.PURCHASE_UPDATE_FAILED)
   }
 
@@ -116,6 +145,15 @@ async function deletePurchaseOrder(id: string): Promise<ApiResponse<null>> {
 
   if (error) {
     logger.error('deletePurchaseOrder', error)
+    logger.diagnostic({
+      level: 'error',
+      event_type: 'purchase_order.delete_failed',
+      message: 'Failed to delete purchase order in Supabase.',
+      metadata: {
+        error,
+        purchase_order_id: id,
+      },
+    })
     return errorResponse(ERROR_MESSAGES.PURCHASE_DELETE_FAILED)
   }
 
